@@ -1,9 +1,9 @@
 import os
 from skimage import io
 from PIL import Image, ImageOps
-labels = ["a"]#["a","b","p"]
-fromPath = ["data/a/"]# ["data/a/", "data/b/", "data/p/"]
-dirPath = ["data/apples/"]# ["data/apples/","data/bananas/", "data/pears/"]
+labels = ["o","l"]#["a","b","p","o","l"]
+fromPath = ["data/o/","data/l/"]# ["data/a/", "data/b/", "data/p/"]
+dirPath = ["data/oranges/","data/lemons/"]# ["data/apples/","data/bananas/", "data/pears/"]
 
 j = 0 
 '''def zmniejsz(tab):

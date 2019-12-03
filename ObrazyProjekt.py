@@ -30,7 +30,7 @@ class Net(Module):
         )
 
         self.linear_layers = Sequential(
-            Linear(4 * 7 * 7, 3)
+            Linear(4 * 7 * 7, 5)
         )
 
     def forward(self, x):
@@ -41,9 +41,8 @@ class Net(Module):
 
 #Pobieranie zbiorów 
 
-trainDir = "data/TRAIN"
-testDir = "data/TEST"
-trainDirs = ["data/apples/","data/bananas/","data/pears/"]
+trainDirs = ["data/apples/","data/bananas/","data/pears/","data/oranges/","data/lemons/"]
+testDirs = ["data/testApples/","data/testBananas/","data/testPears/","data/testOranges/","data/testLemons/"]
 labels = []
 filePaths = []
 
@@ -59,8 +58,9 @@ for dir in trainDirs:
     i = i + 1
     print(n)
 
-nl = os.listdir(testDir)
-numberOfTestImgs = len(nl)
+numberOfTestImgs = 0 
+for dir in testDirs:
+    numberOfTestImgs += len(os.listdir(dir))
 #print(numberOfTestImgs)
 #print(filePaths)
 #print(labels)
@@ -123,7 +123,7 @@ if torch.cuda.is_available():
 
 print(model)
 
-n_epochs = 25
+n_epochs = 75
 train_losses = []
 val_losses = []
 
@@ -158,6 +158,10 @@ def train(epoch):
 
 for epoch in range(n_epochs):
     train(epoch)
+    combined = list(zip(filePaths, labels))
+    random.shuffle(combined)
+    random.shuffle(combined)
+    filePaths, labels = zip(*combined)
 
 plt.plot(train_losses, label='Training loss')
 plt.plot(val_losses, label='Validation loss')
@@ -176,11 +180,31 @@ predictions = np.argmax(prob, axis=1)
 print(accuracy_score(train_y, predictions))
 
 #Testowanie
-
-
 test_img = []
-for filePath in os.listdir("data/TEST/"):
-    img = io.imread("data/TEST/"+filePath, as_gray=True)
+testFiles = []
+testLabels = []
+i = 0
+
+for fruit in testDirs:
+    testLabels = testLabels + [i for j in range(0,15)]
+    i += 1
+
+for dir in testDirs:
+    l = os.listdir(dir)
+    testFiles =  testFiles + [dir + id for id in l] 
+
+#Mieszanie zbiorów aby nie były po kolei klasami
+
+combined2 = list(zip(testFiles, testLabels))
+random.shuffle(combined2)
+random.shuffle(combined2)
+testFiles, testLabels = zip(*combined2)
+
+#print(testFiles)
+#print(testLabels)
+
+for filePath in testFiles:
+    img = io.imread(filePath, as_gray=True)
     img /= 255.0
     img.astype('float32')
     test_img.append(img)
@@ -191,13 +215,6 @@ test_x = torch.from_numpy(test_x)
 
 with torch.no_grad():
     output = model(test_x.cuda())
-
-testLabels = []
-i = 0
-for fruit in trainDirs:
-    testLabels = testLabels + [i for j in range(0,15)]
-    i += 1
-
 
 softmax = torch.exp(output).cpu()
 prob = list(softmax.numpy())
