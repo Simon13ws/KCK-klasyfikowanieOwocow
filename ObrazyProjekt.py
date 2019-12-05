@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import os, torch, random
 from torch.autograd import Variable
-from torch.nn import Linear, ReLU, CrossEntropyLoss, Sequential, Conv2d, MaxPool2d, Module, Softmax, BatchNorm2d, Dropout
+import torch.nn as nn
 from torch.optim import Adam, SGD
 from skimage import io
 from math import floor, ceil
@@ -13,8 +13,32 @@ from sklearn.model_selection import train_test_split
 
 from sklearn.metrics import accuracy_score
 
-class Net(Module):
+class Net(nn.Module):
     def __init__(self):
+        super(Net, self).__init__()
+
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=12, kernel_size=3, stride=1, padding=1)
+        self.relu1 = nn.ReLU()
+
+        self.maxpool1 = nn.MaxPool2d(kernel_size=1)
+
+        self.conv2 = nn.Conv2d(in_channels=12, out_channels=12, kernel_size=3, stride=1, padding=1)
+        self.relu2 = nn.ReLU()
+
+        self.lf = nn.Sequential(nn.Linear(in_features=30*30*12, out_features=5))
+
+    def forward(self, input):
+        output = self.conv1(input)
+        output = self.relu1(output)
+        output = self.maxpool1(output)
+        output = self.conv2(output)
+        output = self.relu2(output)
+
+        output = output.view(output.size(0), -1)
+        output = self.lf(output)
+
+        return output
+    '''def __init__(self):
         super(Net, self).__init__()
 
         self.cnn_layers = Sequential(
@@ -38,6 +62,7 @@ class Net(Module):
         x = x.view(x.size(0), -1)
         x = self.linear_layers(x)
         return x
+        '''
 
 #Pobieranie zbiorów 
 
@@ -76,8 +101,8 @@ filePaths, labels = zip(*combined)
 #Trenowanie
 train_img = []
 for path in filePaths:
-    img = io.imread(path, as_gray=True)
-    img /= 255.0
+    img = io.imread(path, as_gray=False)
+    img = img / 255.0
     img.astype('float32')
     train_img.append(img)
 
@@ -94,13 +119,13 @@ train_y = train_y[:x]
 
 train_x, val_x, train_y, val_y = train_test_split(train_x, train_y, test_size = 0.1)
 
-train_x = train_x.reshape(x - int(0.1*x), 1, 30, 30)
-train_x = torch.from_numpy(train_x)
 
+train_x = train_x.reshape(x - int(0.1*x), 3, 30, 30)
+train_x = torch.from_numpy(train_x)
 train_y = np.asarray(train_y).astype(int)
 train_y = torch.from_numpy(train_y)
 
-val_x = val_x.reshape(int(0.1*x),1,30,30)
+val_x = val_x.reshape(int(0.1*x),3,30,30)
 val_x = torch.from_numpy(val_x)
 
 val_y = np.asarray(val_y).astype(int)
@@ -113,17 +138,17 @@ print(val_y.shape)
 
 model = Net()
 
-optimizer = Adam(model.parameters(), lr=0.07)
+optimizer = Adam(model.parameters(), lr=0.005)
 
-criterion = CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss()
 
 if torch.cuda.is_available():
-    model = model.cuda()
-    criterion = criterion.cuda()
+    model = model.cpu()
+    criterion = criterion.cpu()
 
 print(model)
 
-n_epochs = 75
+n_epochs = 50
 train_losses = []
 val_losses = []
 
@@ -135,14 +160,15 @@ def train(epoch):
     x_val, y_val = Variable(val_x), Variable(val_y)
 
     if torch.cuda.is_available():
-        x_train = x_train.cuda()
-        y_train = y_train.cuda()
-        x_val = x_val.cuda()
-        y_val = y_val.cuda()
+        x_train = x_train.cpu()
+        y_train = y_train.cpu()
+        x_val = x_val.cpu()
+        y_val = y_val.cpu()
     
     optimizer.zero_grad()
 
     model=model.double()
+    #print("x_train size",x_train.size())
     output_train = model(x_train)
     output_val = model(x_val)
 
@@ -171,7 +197,7 @@ plt.show()
 #Walidacja
 
 with torch.no_grad():
-    output = model(train_x.cuda())
+    output = model(train_x.cpu())
 
 softmax = torch.exp(output).cpu()
 prob = list(softmax.numpy())
@@ -204,23 +230,23 @@ testFiles, testLabels = zip(*combined2)
 #print(testLabels)
 
 for filePath in testFiles:
-    img = io.imread(filePath, as_gray=True)
-    img /= 255.0
+    img = io.imread(filePath, as_gray=False)
+    img = img / 255.0
     img.astype('float32')
     test_img.append(img)
 
 test_x = np.array(test_img)
-test_x = test_x.reshape(numberOfTestImgs, 1, 30, 30)
+test_x = test_x.reshape(numberOfTestImgs, 3, 30, 30)
 test_x = torch.from_numpy(test_x)
 
 with torch.no_grad():
-    output = model(test_x.cuda())
+    output = model(test_x.cpu())
 
 softmax = torch.exp(output).cpu()
 prob = list(softmax.numpy())
 predictions = np.argmax(prob, axis=1)
 
-print(predictions)
+print(predictions.tolist())
 print(testLabels)
 goodPredictions = 0
 
